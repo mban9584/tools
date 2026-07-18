@@ -5,22 +5,24 @@
 # Shadowsocks Rust 2022 安装管理脚本
 #
 # 作者：雅虎
-# 版本：4.5
+# 版本：4.6
 # 描述：一个安全、简洁的 shadowsocks-rust 一键安装管理脚本。
 #
-# 核心优化 (v4.5):
+# 核心优化 (v4.6):
 # - [安全] 修复密码验证逻辑漏洞，所有模式下都进行格式验证
 # - [安全] 配置文件权限设置为 600，仅 root 可访问
 # - [安全] 增强网络请求安全性，添加重试和超时控制
 # - [功能] 添加端口冲突检查
 # - [简化] 移除非必要功能，专注核心管理功能
 # - [v4.5] 简化卸载流程，默认直接删除所有文件，不再二次询问
+# - [v4.6] 首次运行后在脚本目录生成 ss2022.sh 管理副本
 # ===================================================================================
 
 set -euo pipefail
 
 # --- 脚本配置与变量 ---
-readonly SCRIPT_VERSION="4.5"
+readonly SCRIPT_VERSION="4.6"
+readonly MANAGER_NAME="ss2022.sh"
 readonly INSTALL_DIR="/etc/ss-rust"
 readonly BINARY_PATH="/usr/local/bin/ss-rust"
 readonly CONFIG_PATH="${INSTALL_DIR}/config.json"
@@ -87,6 +89,47 @@ safe_curl() {
 check_root() {
     if [[ "$EUID" -ne 0 ]]; then
         error "此脚本必须以 root 权限运行，请使用 sudo。"
+    fi
+}
+
+# --- 安装管理副本 ---
+install_manager_copy() {
+    local source_path="${BASH_SOURCE[0]}"
+    local source_dir manager_path
+
+    if [[ ! -f "$source_path" ]]; then
+        warn "当前脚本不是普通文件，无法自动生成 ${MANAGER_NAME}。"
+        return
+    fi
+
+    if ! source_dir=$(cd -- "$(dirname -- "$source_path")" && pwd -P); then
+        warn "无法确定脚本所在目录，未生成 ${MANAGER_NAME}。"
+        return
+    fi
+
+    source_path="${source_dir}/$(basename -- "$source_path")"
+    manager_path="${source_dir}/${MANAGER_NAME}"
+
+    # 通过管理副本自身启动时无需再次复制。
+    if [[ "$source_path" == "$manager_path" ]]; then
+        return
+    fi
+
+    if [[ -L "$manager_path" || ( -e "$manager_path" && ! -f "$manager_path" ) ]]; then
+        warn "${manager_path} 不是普通文件，为避免误覆盖已停止更新。"
+        return
+    fi
+
+    if [[ -f "$manager_path" ]] && ! grep -qF "MANAGER_NAME=\"${MANAGER_NAME}\"" "$manager_path"; then
+        warn "${manager_path} 不是本工具生成的管理副本，为避免误覆盖已停止更新。"
+        return
+    fi
+
+    if install -m 700 "$source_path" "$manager_path"; then
+        success "管理脚本已更新: ${manager_path}"
+        info "以后可在该目录执行: sudo ./${MANAGER_NAME}"
+    else
+        warn "无法生成 ${manager_path}，仍可继续使用原脚本。"
     fi
 }
 
@@ -703,6 +746,7 @@ main_menu() {
 # --- 脚本入口 ---
 main() {
     check_root
+    install_manager_copy
 
     local ss_port=""
     local ss_password=""
@@ -815,4 +859,6 @@ EOF
 }
 
 # 执行主函数
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

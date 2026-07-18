@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# nftables 端口转发管理工具 v1.1
+# nftables 端口转发管理工具 v1.2
 # 交互式管理 DNAT 端口转发规则
+# 首次运行后在脚本目录生成 nft.sh 管理副本
 #
 
 # ============== 常量定义 ==============
@@ -13,6 +14,8 @@ SYSCTL_CONF="/etc/sysctl.d/99-nft-forward.conf"
 LOG_FILE="/var/log/nft-forward.log"
 LOGROTATE_CONF="/etc/logrotate.d/nft-forward"
 TABLE_NAME="port_forward"
+SCRIPT_VERSION="1.2"
+MANAGER_NAME="nft.sh"
 
 # ============== 日志函数 ==============
 log_action() {
@@ -30,6 +33,47 @@ check_root() {
     if [[ $EUID -ne 0 ]]; then
         err "此脚本需要 root 权限运行，请使用 sudo 或 root 用户执行。"
         exit 1
+    fi
+}
+
+# ============== 安装管理副本 ==============
+install_manager_copy() {
+    local source_path="${BASH_SOURCE[0]}"
+    local source_dir manager_path
+
+    if [[ ! -f "$source_path" ]]; then
+        warn "当前脚本不是普通文件，无法自动生成 ${MANAGER_NAME}。"
+        return
+    fi
+
+    if ! source_dir=$(cd -- "$(dirname -- "$source_path")" && pwd -P); then
+        warn "无法确定脚本所在目录，未生成 ${MANAGER_NAME}。"
+        return
+    fi
+
+    source_path="${source_dir}/$(basename -- "$source_path")"
+    manager_path="${source_dir}/${MANAGER_NAME}"
+
+    # 通过管理副本自身启动时无需再次复制。
+    if [[ "$source_path" == "$manager_path" ]]; then
+        return
+    fi
+
+    if [[ -L "$manager_path" || ( -e "$manager_path" && ! -f "$manager_path" ) ]]; then
+        warn "${manager_path} 不是普通文件，为避免误覆盖已停止更新。"
+        return
+    fi
+
+    if [[ -f "$manager_path" ]] && ! grep -qF "MANAGER_NAME=\"${MANAGER_NAME}\"" "$manager_path"; then
+        warn "${manager_path} 不是本工具生成的管理副本，为避免误覆盖已停止更新。"
+        return
+    fi
+
+    if install -m 700 "$source_path" "$manager_path"; then
+        info "管理脚本已更新: ${manager_path}"
+        info "以后可在该目录执行: sudo ./${MANAGER_NAME}"
+    else
+        warn "无法生成 ${manager_path}，仍可继续使用原脚本。"
     fi
 }
 
@@ -1001,7 +1045,7 @@ main_menu() {
     while true; do
         echo ""
         echo "========================================"
-        echo "   nftables 端口转发管理工具 v1.0"
+        echo "   nftables 端口转发管理工具 v${SCRIPT_VERSION}"
         echo "========================================"
         echo "  1) 安装 nftables"
         echo "  2) 查看现有端口转发"
@@ -1032,5 +1076,8 @@ main_menu() {
 }
 
 # ============== 入口 ==============
-check_root
-main_menu
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    check_root
+    install_manager_copy
+    main_menu
+fi

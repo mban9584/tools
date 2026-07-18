@@ -21,10 +21,18 @@ chmod 700 nftables.sh
 sudo ./nftables.sh
 ```
 
+首次运行会在 `nftables.sh` 所在目录自动生成权限为 `700` 的管理副本 `nft.sh`。以后进入该目录执行：
+
+```bash
+sudo ./nft.sh
+```
+
+再次运行新版 `nftables.sh` 会覆盖更新 `nft.sh`；通过 `nft.sh` 启动时不会重复复制。
+
 当前版本 SHA-256：
 
 ```text
-e5d6c24feabaa190e00e0c08fe014889624d28f1d9a9fc3f75199672c6dd4b84
+15caaac0100818680e51178140a5a6501613d340e4acacbffd37a7b3a23ac214
 ```
 
 如果只需要一条命令：
@@ -42,7 +50,7 @@ curl -fL --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/mban9584/t
 
 ## ss2022install.sh
 
-Shadowsocks-rust 2022 安装管理脚本，支持安装、更新、卸载、配置修改和 systemd 服务管理。脚本内保留原作者署名，仓库分发版本未修改其内容。
+Shadowsocks-rust 2022 安装管理脚本，支持安装、更新、卸载、配置修改和 systemd 服务管理。脚本内保留原作者署名，并增加自动生成管理副本功能。
 
 ### 下载和使用
 
@@ -57,10 +65,18 @@ chmod 700 ss2022install.sh
 sudo ./ss2022install.sh
 ```
 
+首次运行会在 `ss2022install.sh` 所在目录自动生成权限为 `700` 的管理副本 `ss2022.sh`。以后进入该目录执行：
+
+```bash
+sudo ./ss2022.sh
+```
+
+再次运行新版 `ss2022install.sh` 会覆盖更新 `ss2022.sh`；通过 `ss2022.sh` 启动时不会重复复制。
+
 当前版本 SHA-256：
 
 ```text
-79f55b286c9a3cc4bd61087c7afd9ff30f9119609739fb3592356e6897a9f966
+6ef76561f44fcf198b3829a913d3ac599490676b1479b2c6662e85f78096b696
 ```
 
 ### 注意事项
